@@ -5,36 +5,47 @@ Chip8 Emulator in Rebol 3
 
 This implementation of the Chip8 virtual machine currently requires Saphrion's GUI Rebol 3 (Windows only--for now) (http://development.saphirion.com/downloads/) to run.  It also needs an internet connection to download the current R3-Gui.r3 file.
 
-To-Complete
+##Current State
+
+###What Works
+- Draw engine
+- Game loading
+- Scaling
+- Most Opcodes
+
+###What Doesn't Work
+- Controls (unimplemented)
+- Sound (unimplemented - Rebol 3 needs a sound library still)
+
+To-Do
 -----------
 - When new timer system is complete in Rebol 3 switch from current R3-Gui hack
 - Implement control scheme by creating a style similar to Cyphre's screen style
 - Implement more robust game loading system
+- When final opcodes are implemented, use vprint-esque optional debugging output
 
 
 
-Specs:
------
+##Specs:
 The specs of the Chip8 virtual machine follow (copied and adapted from Wikipedia):
 
-Memory
-------
+###Memory
 CHIP-8's memory addresses range from 200h to FFFh, making for 3,584 bytes. 
 
 The reason for the memory starting at 200h is that on the Cosmac VIP and Telmac 1800, the first 512 bytes are reserved for the interpreter. On those machines, the uppermost 256 bytes (F00h-FFFh on a 4K machine) were reserved for display refresh, and the 96 bytes below that (EA0h-EFFh) were reserved for the call stack, internal use, and the variables.
 
-Registers
----------
+###Registers
+
 CHIP-8 has 16 8-bit data registers named from V0 to VF. The VF register doubles as a carry flag.
 
 The address register, which is named I, is 16 bits wide and is used with several opcodes that involve memory operations
 
-The Stack
----------
+###The Stack
+
 The stack is only used to store return addresses when subroutines are called. The original 1802 version allocated 48 bytes for up to 12 levels of nesting; modern implementations normally have at least 16 levels.
 
-Timers
-------
+###Timers
+
 CHIP-8 has two timers. They both count down at 60 hertz, until they reach 0.
 
     Delay timer: This timer is intended to be used for timing the events of games. Its value can be set and read.
@@ -42,16 +53,15 @@ CHIP-8 has two timers. They both count down at 60 hertz, until they reach 0.
 
 As previously described, a beeping sound is played when the value of the sound timer is nonzero.
 
-Input
------
+###Input
+
 Input is done with a hex keyboard that has 16 keys which range from 0 to F. The '8', '4', '6', and '2' keys are typically used for directional input. Three opcodes are used to detect input. One skips an instruction if a specific key is pressed, while another does the same if a specific key is not pressed. The third waits for a key press, and then stores it in one of the data registers.
 
-Graphics and Sound
-------------------
+###Graphics and Sound
 Display resolution is 64×32 pixels, and color is monochrome. Graphics are drawn to the screen solely by drawing sprites, which are 8 pixels wide and may be from 1 to 15 pixels in height. Sprite pixels that are set flip the color of the corresponding screen pixel, while unset sprite pixels do nothing. The carry flag (VF) is set to 1 if any screen pixels are flipped from set to unset when a sprite is drawn and set to 0 otherwise.
 
-Opcode Table
-------------
+###Opcode Table
+
 CHIP-8 has 35 opcodes, which are all two bytes long. The most significant byte is stored first. The opcodes are listed below, in hexadecimal and with the following symbols:
 
     NNN: address
