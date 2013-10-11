@@ -1,6 +1,8 @@
 Chip8 Emulator in Rebol 3
 =========================
 
+This implementation of the Chip8 virtual machine currently requires (http://development.saphirion.com/downloads/)[Saphrion's GUI Rebol 3] (Windows only--for now) to run.  It also needs an internet connection to download the current R3-Gui.r3 file.
+
 To-Complete
 -----------
 - When new timer system is complete in Rebol 3 switch from current R3-Gui hack
