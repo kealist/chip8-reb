@@ -2,42 +2,41 @@ REBOL[
     ; -- Core Header attributes --
     title: "Chip8 Emulator"
     file: %chip8.r3
-    version: 0.0.1
-    date: 2013-11-14/21:03:26
     author: "Joshua Shireman"
-    purpose: {To emulate the CHIP8 instruction set interpreter with display}
-    web: http://www.github.com/kealist
-    source-encoding: "Windows-1252"
-
-    ; -- Licensing details  --
+    version: 0.0.2
+    date: 2013-11-14/21:03:26
     copyright: "Copyright © 2013 Joshua Shireman"
-    license-type: "Apache License v2.0"
-    license: {Copyright © 2013 Joshua Shireman
+    license: {Copyright 2013 Joshua Shireman
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-    
-        http://www.apache.org/licenses/LICENSE-2.0
-    
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.}
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+}
 
     ;-  / history
     history: {
         v0.0.1 - 2013-11-14
-            -Initial header entry. There are a few things needed to implement.  This most recent version has implemented file loading for the games.}
+            -Initial header entry. There are a few things needed to implement.  This most recent version has implemented file loading for the games.
+        v0.0.2 - 2013-11-14
+            -Fixed a few OPCODE bugs related to poking binary values.   Started implementation of controls, but unfunctional}
     ;-  \ history
-
-    ;-  / documentation
-    documentation: {
-        User documentation goes here
-    }
-    ;-  \ documentation
+    purpose: {To emulate the CHIP8 instruction set interpreter with display}
+    web: "http://www.github.com/kealist"
+    source-encoding: "Windows-1252"
+    license-type: "Apache License v2.0"
+    documentation: {    
+         Only requirements are to run the file with (do %chip8.r3) and
+         Currently it requires a folder full of %games/}
 ]
+
 
 load-gui
 
@@ -122,7 +121,7 @@ chip8: make object! [
         repeat num 80 [poke memory (num) to-integer (pick fontset num)]
         
         
-        program: merlin
+        
         
 
         print "Chip 8 Emulator Initialized..."
@@ -133,7 +132,7 @@ chip8: make object! [
             append game-names game
             append game-data data
         ]
-        
+        program: pick game-data 1
         
         view/maximized m: layout [
             drop-down game-names on-action [
@@ -170,8 +169,23 @@ chip8: make object! [
                     clear-timer t
                 ]
             ]
-            img1: image gfx-img 
-            
+            img1: image gfx-img on-key [
+                if arg/type = 'key [ ;detect only "key-down" event types (use 'key-up for up events)
+                    dx: dy: 0
+                    switch arg/key [
+                        right [print dx: 1]
+                        left  [print dx: -1]
+                        up    [print dy: 1]
+                        down  [print dy: -1]
+                    ]
+                    if find arg/flags 'shift [
+                        print dx: dx * 3
+                        dy: dy * 3
+                    ]
+                    print as-pair dx dy
+                ]
+                arg ; return same event
+            ]
         ] 
     ]
     load-program: does [
@@ -295,19 +309,19 @@ chip8: make object! [
                         increment-pc
                     ]
                     #{0001} [
-                    ;8XY1;Sets VX to VX or VY.
+                        ;8XY1;Sets VX to VX or VY.
                         print [{------------------------>Set v[x]=} (get-x oc) {to} ((pick v (get-x oc)) or (pick v (get-y oc)))]
                         poke v (get-x oc) ((pick v (get-x oc)) or (pick v (get-y oc)))
                         increment-pc
                     ]
                     #{0002} [
-                    ;8XY2;Sets VX to VX and VY.
+                        ;8XY2;Sets VX to VX and VY.
                         print [{------------------------>Set v[x]=} (get-x oc) {to} ((pick v (get-x oc)) and (pick v (get-y oc)))]
                         poke v (get-x oc) ((pick v (get-x oc)) and (pick v (get-y oc)))
                         increment-pc
                     ]
                     #{0003} [
-                    ;8XY3;Sets VX to VX xor VY.
+                        ;8XY3;Sets VX to VX xor VY.
                         print [{------------------------>Set v[x]=} (get-x oc) {to} ((pick v (get-x oc)) xor (pick v (get-y oc)))]
                         poke v (get-x oc) ((pick v (get-x oc)) xor (pick v (get-y oc)))
                         increment-pc
@@ -315,10 +329,10 @@ chip8: make object! [
                     #{0004} [
                         ;; 8XY4 adds register V[x] and V[y], setting v[16] flag if overflowed
                         print [{------------------------>}]
-                        either (w: pick v get-y) > (255 - x: pick v get-x) [
-                            poke v 16 #{01}
+                        either (w: pick v (get-y oc)) > (255 - x: pick v (get-x oc)) [
+                            poke v 16 1
                         ] [
-                            poke v 16 #{00}
+                            poke v 16 0
                         ]
                         poke v (get-y oc) (w + x)
                         increment-pc
@@ -397,7 +411,7 @@ chip8: make object! [
                             ;;Collision Detection
                             either  ((pick gfx-img coord-pair) = bg-color) [
                                 print {Collision detected}
-                                poke v 16 #{01}
+                                poke v 16 1
                                 repeat num-y gfx-scale [
                                     repeat num-x gfx-scale [
                                         draw-pair: coord-pair + to-pair reduce [num-x - 1 num-y - 1]
