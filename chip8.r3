@@ -2,43 +2,105 @@ REBOL[
     ; -- Core Header attributes --
     title: "Chip8 Emulator"
     file: %chip8.r3
-    author: "Joshua Shireman"
-    version: 0.0.2
+    version: 0.0.3
     date: 2013-11-14/21:03:26
+    author: "Joshua Shireman"
+    purpose: {To emulate the CHIP8 instruction set interpreter with display}
+    web: http://www.github.com/kealist
+    source-encoding: "Windows-1252"
+
+    ; -- Licensing details  --
     copyright: "Copyright © 2013 Joshua Shireman"
-    license: {Copyright 2013 Joshua Shireman
+    license-type: "Apache License v2.0"
+    license: {Copyright © 2013 Joshua Shireman
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-}
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+    
+        http://www.apache.org/licenses/LICENSE-2.0
+    
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.}
 
     ;-  / history
     history: {
         v0.0.1 - 2013-11-14
             -Initial header entry. There are a few things needed to implement.  This most recent version has implemented file loading for the games.
         v0.0.2 - 2013-11-14
-            -Fixed a few OPCODE bugs related to poking binary values.   Started implementation of controls, but unfunctional}
+            -Fixed a few OPCODE bugs related to poking binary values.   Started implementation of controls, but unfunctional
+        v0.0.3 - 2013-11-14
+            -Implemented Cyphre's sytle to detect the key presses for the 16 keypad.  Currently they just print, but they will be extended to set a variable when pressed or NONE when the key up event occurs}
     ;-  \ history
-    purpose: {To emulate the CHIP8 instruction set interpreter with display}
-    web: "http://www.github.com/kealist"
-    source-encoding: "Windows-1252"
-    license-type: "Apache License v2.0"
+
+    ;-  / documentation
     documentation: {    
          Only requirements are to run the file with (do %chip8.r3) and
          Currently it requires a folder full of %games/}
+    ;-  \ documentation
 ]
 
 
+
 load-gui
+
+moved?: false
+
+stylize [
+    ;backup the original window style to be able call the original key actor
+    window-orig: window []
+
+    ;override window style with our key actor
+    window: window [
+        actors: [
+            on-key: [
+                ;execute our key controls prior to 'system' key handling
+                switch arg/type [
+                    key [
+                        ;here you can handle key-down events
+                        switch/default arg/key [
+                            #"1" [print 1]
+                            #"2" [print 2]
+                            #"3" [print 3]
+                            #"4" [print 4]
+                            #"q" [print 5]
+                            #"w" [print 6]
+                            #"e" [print 7]
+                            #"r" [print 8]
+                            #"a" [print 9]
+                            #"s" [print 10]
+                            #"d" [print 11]
+                            #"f" [print 12]
+                            #"z" [print 13]
+                            #"x" [print 14]
+                            #"c" [print 15]
+                            #"v" [print 16]
+                            
+                        ][
+                            false
+                        ]
+                    ]
+                    key-up [
+                        ;here you can handle key-up events
+                    ]
+                ]
+                ;for example filter out faces that shouldn't get the system key events (for example editable styles)
+                 unless all [
+                    ;moved?
+                    guie/focal-face
+                    tag-face? guie/focal-face 'edit
+                 ][
+                    ;handle the system key handling
+                    do-actor/style face 'on-key arg 'window-orig
+                ]
+            ]
+        ]
+    ]
+]
+
 
 load-files: func [dir /local data files] [
     data: copy []
@@ -169,22 +231,10 @@ chip8: make object! [
                     clear-timer t
                 ]
             ]
-            img1: image gfx-img on-key [
-                if arg/type = 'key [ ;detect only "key-down" event types (use 'key-up for up events)
-                    dx: dy: 0
-                    switch arg/key [
-                        right [print dx: 1]
-                        left  [print dx: -1]
-                        up    [print dy: 1]
-                        down  [print dy: -1]
-                    ]
-                    if find arg/flags 'shift [
-                        print dx: dx * 3
-                        dy: dy * 3
-                    ]
-                    print as-pair dx dy
-                ]
-                arg ; return same event
+            img1: image options [min-size: 640x320]
+            when [enter] on-action [        
+                ;initialize game object             
+                set-face img1 gfx-img
             ]
         ] 
     ]
@@ -411,6 +461,7 @@ chip8: make object! [
                             ;;Collision Detection
                             either  ((pick gfx-img coord-pair) = bg-color) [
                                 print {Collision detected}
+                                
                                 poke v 16 1
                                 repeat num-y gfx-scale [
                                     repeat num-x gfx-scale [
@@ -473,7 +524,7 @@ chip8: make object! [
                     ]
                     #{0018} [
                         ;;Sets the sound timer to VX.
-                        print[{------------------------>}]
+                        print[{------------------------>Play Sound (unimplemented)}]
                         sound-timer: set-timer [print BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEP!] pick v (get-x oc)
                         increment-pc
                     ]
