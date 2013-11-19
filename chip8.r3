@@ -2,7 +2,7 @@ REBOL[
     ; -- Core Header attributes --
     title: "Chip8 Emulator"
     file: %chip8.r3
-    version: 0.0.4
+    version: 0.0.3
     date: 2013-11-14/21:03:26
     author: "Joshua Shireman"
     purpose: {To emulate the CHIP8 instruction set interpreter with display}
@@ -33,9 +33,7 @@ REBOL[
         v0.0.2 - 2013-11-14
             -Fixed a few OPCODE bugs related to poking binary values.   Started implementation of controls, but unfunctional
         v0.0.3 - 2013-11-14
-            -Implemented Cyphre's sytle to detect the key presses for the 16 keypad.  Currently they just print, but they will be extended to set a variable when pressed or NONE when the key up event occurs
-        v0.0.4 - 2013-11-19
-            - Cleaned up some code repetition by creating two new functions set-vx and set-vy}
+            -Implemented Cyphre's sytle to detect the key presses for the 16 keypad.  Currently they just print, but they will be extended to set a variable when pressed or NONE when the key up event occurs}
     ;-  \ history
 
     ;-  / documentation
@@ -44,7 +42,6 @@ REBOL[
          Currently it requires a folder full of %games/}
     ;-  \ documentation
 ]
-
 
 
 
@@ -246,18 +243,6 @@ chip8: make object! [
             poke memory (num + 512) (pick program num)
         ]
     ]
-    set-vx: func [
-        o-c [binary!]
-        value
-    ][
-        poke v (get-x o-c) value
-    ]
-    set-vy: func [
-        o-c [binary!]
-        value
-    ][
-        poke v (get-y o-c) value
-    ]
     get-x: func [
         o-c [binary!]
     ] [
@@ -354,14 +339,14 @@ chip8: make object! [
                 ;; Sets VX to NN.
                 nn: to-integer (oc and #{00FF})
                 print [{------------------------>Set V[} (get-x oc) {] to } nn {-->} to-integer nn]
-                set-vx oc nn
+                poke v (get-x oc) nn
                 increment-pc
             ]
             #{7000} [
                 ;; Adds NN to VX.
                 nn: to-integer (oc and #{00FF})
                 print [{------------------------>Adding} nn {to the value of v[} (get-x oc) {]=} pick v (get-x oc) {=>} (nn + to-integer (pick v (get-x oc)))]
-                set-vx oc (remainder (num: nn + (pick v (get-x oc))) 256)
+                poke v (get-x oc) (remainder (num: nn + (pick v (get-x oc))) 256)
                 if ((num / 256) > 1) [poke v 15 1]
                 increment-pc
             ]
@@ -370,25 +355,25 @@ chip8: make object! [
                     #{0000} [
                         ;8XY0;Sets VX to the value of VY.
                         print [{------------------------>Set v[x]=} (get-x oc) {to} (pick v (get-y oc))]
-                        set-vx oc (pick v (get-y oc))
+                        poke v (get-x oc) (pick v (get-y oc))
                         increment-pc
                     ]
                     #{0001} [
                         ;8XY1;Sets VX to VX or VY.
                         print [{------------------------>Set v[x]=} (get-x oc) {to} ((pick v (get-x oc)) or (pick v (get-y oc)))]
-                        set-vx oc ((pick v (get-x oc)) or (pick v (get-y oc)))
+                        poke v (get-x oc) ((pick v (get-x oc)) or (pick v (get-y oc)))
                         increment-pc
                     ]
                     #{0002} [
                         ;8XY2;Sets VX to VX and VY.
                         print [{------------------------>Set v[x]=} (get-x oc) {to} ((pick v (get-x oc)) and (pick v (get-y oc)))]
-                        set-vx oc ((pick v (get-x oc)) and (pick v (get-y oc)))
+                        poke v (get-x oc) ((pick v (get-x oc)) and (pick v (get-y oc)))
                         increment-pc
                     ]
                     #{0003} [
                         ;8XY3;Sets VX to VX xor VY.
                         print [{------------------------>Set v[x]=} (get-x oc) {to} ((pick v (get-x oc)) xor (pick v (get-y oc)))]
-                        set-vx oc ((pick v (get-x oc)) xor (pick v (get-y oc)))
+                        poke v (get-x oc) ((pick v (get-x oc)) xor (pick v (get-y oc)))
                         increment-pc
                     ]
                     #{0004} [
@@ -399,7 +384,7 @@ chip8: make object! [
                         ] [
                             poke v 16 0
                         ]
-                        set-vy oc (w + x)
+                        poke v (get-y oc) (w + x)
                         increment-pc
                     ]
                     #{0005} [
@@ -451,7 +436,7 @@ chip8: make object! [
                 nn: to-integer oc and #{00FF}
                 m: random 256
                 print[{------------------------>Setting v[} get-x oc {]:} m {and} nn {=} m and nn]
-                set-vx oc to-integer ((random 256) and nn)
+                poke v (get-x oc) to-integer ((random 256) and nn)
                 increment-pc
             ]
             #{D000} [
@@ -509,12 +494,7 @@ chip8: make object! [
                     #{009E} [
                         ;;Skips the next instruction if the key stored in VX is pressed.
                         print[{------------------------>}]
-                        either false [
-                            increment-pc
-                            increment-pc
-                        ][
-                            increment-pc
-                        ]
+                        (oc and #{0F00})
                     ]
                     #{00A1} [
                         ;;Skips the next instruction if the key stored in VX isn't pressed.
@@ -528,7 +508,7 @@ chip8: make object! [
                         ;;Sets VX to the value of the delay timer.
                         print[{------------------------>Set V[} get-x oc {:} (get-timer-value delay-timer)]
                         ;print (get-timer-value delay-timer)
-                        set-vx oc (get-timer-value delay-timer)
+                        poke v (get-x oc) (get-timer-value delay-timer)
                         increment-pc
                     ]
                     #{000A} [
