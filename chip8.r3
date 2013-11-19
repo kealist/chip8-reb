@@ -2,7 +2,7 @@ REBOL[
     ; -- Core Header attributes --
     title: "Chip8 Emulator"
     file: %chip8.r3
-    version: 0.0.4
+    version: 0.0.5
     date: 2013-11-14/21:03:26
     author: "Joshua Shireman"
     purpose: {To emulate the CHIP8 instruction set interpreter with display}
@@ -35,7 +35,9 @@ REBOL[
         v0.0.3 - 2013-11-14
             -Implemented Cyphre's sytle to detect the key presses for the 16 keypad.  Currently they just print, but they will be extended to set a variable when pressed or NONE when the key up event occurs
         v0.0.4 - 2013-11-19
-            - Cleaned up some code repetition by creating two new functions set-vx and set-vy}
+            - Cleaned up some code repetition by creating two new functions set-vx and set-vy
+        v0.0.5 - 2013-11-19
+            -Cleaned up more repetition with new functions get-vx and get-vy}
     ;-  \ history
 
     ;-  / documentation
@@ -44,6 +46,7 @@ REBOL[
          Currently it requires a folder full of %games/}
     ;-  \ documentation
 ]
+
 
 
 
@@ -246,6 +249,16 @@ chip8: make object! [
             poke memory (num + 512) (pick program num)
         ]
     ]
+    get-vx: func [
+        o-c [binary!]
+    ][
+        pick v (get-x o-c)
+    ]
+    get-vy: func [
+        o-c [binary!]
+    ][
+        pick v (get-y o-c)
+    ]
     set-vx: func [
         o-c [binary!]
         value
@@ -327,8 +340,8 @@ chip8: make object! [
             #{3000} [
                 ;; Skips the next instruction if VX equals NN.
                 nn: to-integer (oc and #{00FF})
-                print [{------------------------>V[ } (get-x oc) {] =} (pick v (get-x oc)) {will skip if equal to} nn {and is} ((pick v (get-x oc)) = nn)]
-                either ((pick v (get-x oc)) = nn) [
+                print [{------------------------>V[ } (get-x oc) {] =} (get-vx oc) {will skip if equal to} nn {and is} ((get-vx oc) = nn)]
+                either ((get-vx oc) = nn) [
                     increment-pc
                     increment-pc
                 ] [increment-pc]        
@@ -336,16 +349,16 @@ chip8: make object! [
             #{4000} [
                 ;; Skips the next instruction if VX doesn't equal NN.
                 nn: (oc and #{00FF})
-                print [{------------------------>V[ } (get-x oc) {] =} (pick v (get-x oc)) {will skip if not equal to} nn {and is} ((pick v (get-x oc)) = nn)]
-                either ((pick v (get-x oc)) != nn) [
+                print [{------------------------>V[ } (get-x oc) {] =} (get-vx oc) {will skip if not equal to} nn {and is} ((get-vx oc) = nn)]
+                either ((get-vx oc) != nn) [
                     increment-pc
                     increment-pc
                 ] [increment-pc]
             ]
             #{5000} [
                 ;; Skips the next instruction if VX equals VY.
-                print [{------------------------>v[x]:} (pick v (get-x oc)) {v[y]} (pick v (get-y oc)) {=} ((pick v (get-x oc)) = (pick v (get-y oc)))]
-                either ((pick v (get-x oc)) = (pick v (get-y oc))) [
+                print [{------------------------>v[x]:} (get-vx oc) {v[y]} (get-vy oc) {=} ((get-vx oc) = (get-vy oc))]
+                either ((get-vx oc) = (get-vy oc)) [
                     increment-pc
                     increment-pc
                 ] [increment-pc]
@@ -360,8 +373,8 @@ chip8: make object! [
             #{7000} [
                 ;; Adds NN to VX.
                 nn: to-integer (oc and #{00FF})
-                print [{------------------------>Adding} nn {to the value of v[} (get-x oc) {]=} pick v (get-x oc) {=>} (nn + to-integer (pick v (get-x oc)))]
-                set-vx oc (remainder (num: nn + (pick v (get-x oc))) 256)
+                print [{------------------------>Adding} nn {to the value of v[} (get-x oc) {]=} get-vx oc {=>} (nn + to-integer (get-vx oc))]
+                set-vx oc (remainder (num: nn + (get-vx oc)) 256)
                 if ((num / 256) > 1) [poke v 15 1]
                 increment-pc
             ]
@@ -369,32 +382,32 @@ chip8: make object! [
                 switch/default (oc and #{000F}) [
                     #{0000} [
                         ;8XY0;Sets VX to the value of VY.
-                        print [{------------------------>Set v[x]=} (get-x oc) {to} (pick v (get-y oc))]
-                        set-vx oc (pick v (get-y oc))
+                        print [{------------------------>Set v[x]=} (get-x oc) {to} (get-vy oc)]
+                        set-vx oc (get-vy oc)
                         increment-pc
                     ]
                     #{0001} [
                         ;8XY1;Sets VX to VX or VY.
-                        print [{------------------------>Set v[x]=} (get-x oc) {to} ((pick v (get-x oc)) or (pick v (get-y oc)))]
-                        set-vx oc ((pick v (get-x oc)) or (pick v (get-y oc)))
+                        print [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) or (get-vy oc))]
+                        set-vx oc ((get-vx oc) or (get-vy oc))
                         increment-pc
                     ]
                     #{0002} [
                         ;8XY2;Sets VX to VX and VY.
-                        print [{------------------------>Set v[x]=} (get-x oc) {to} ((pick v (get-x oc)) and (pick v (get-y oc)))]
-                        set-vx oc ((pick v (get-x oc)) and (pick v (get-y oc)))
+                        print [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) and (get-vy oc))]
+                        set-vx oc ((get-vx oc) and (get-vy oc))
                         increment-pc
                     ]
                     #{0003} [
                         ;8XY3;Sets VX to VX xor VY.
-                        print [{------------------------>Set v[x]=} (get-x oc) {to} ((pick v (get-x oc)) xor (pick v (get-y oc)))]
-                        set-vx oc ((pick v (get-x oc)) xor (pick v (get-y oc)))
+                        print [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) xor (get-vy oc))]
+                        set-vx oc ((get-vx oc) xor (get-vy oc))
                         increment-pc
                     ]
                     #{0004} [
                         ;; 8XY4 adds register V[x] and V[y], setting v[16] flag if overflowed
                         print [{------------------------>}]
-                        either (w: pick v (get-y oc)) > (255 - x: pick v (get-x oc)) [
+                        either (w: get-vy oc) > (255 - x: get-vx oc) [
                             poke v 16 1
                         ] [
                             poke v 16 0
@@ -427,8 +440,8 @@ chip8: make object! [
             #{9000} [
                 ;; Skips the next instruction if VX doesn't equal VY.
                 nn: to-integer (oc and #{00FF})
-                print [{------------------------>V[ } (get-x oc) {] =} (pick v (get-x oc)) {will skip if not equal to} nn {and is} ((pick v (get-x oc)) = nn)]
-                either ((pick v (get-x oc)) != nn) [
+                print [{------------------------>V[ } (get-x oc) {] =} (get-vx oc) {will skip if not equal to} nn {and is} ((get-vx oc) = nn)]
+                either ((get-vx oc) != nn) [
                     increment-pc
                     increment-pc
                 ] [increment-pc]    
@@ -460,8 +473,8 @@ chip8: make object! [
                 
                 height: to-integer (oc and #{000F})
                 poke v 16 0
-                x-coord: (to-integer pick v (get-x oc))
-                y-coord: (to-integer pick v (get-y oc))
+                x-coord: (to-integer get-vx oc)
+                y-coord: (to-integer get-vy oc)
                 print [{------------------------>Draw sprite} i {at} x-coord {x} y-coord {of height} height]
                 
                 repeat num height [
@@ -538,33 +551,33 @@ chip8: make object! [
                     ]
                     #{0015} [
                         ;;Sets the delay timer to VX.
-                        print[{------------------------>Set delay-timer to} pick v (get-x oc)]
-                        delay-timer: set-timer [print "Delay timer done"] pick v (get-x oc)
+                        print[{------------------------>Set delay-timer to} get-vx oc]
+                        delay-timer: set-timer [print "Delay timer done"] get-vx oc
                         increment-pc
                     ]
                     #{0018} [
                         ;;Sets the sound timer to VX.
                         print[{------------------------>Play Sound (unimplemented)}]
-                        sound-timer: set-timer [print BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEP!] pick v (get-x oc)
+                        sound-timer: set-timer [print BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEP!] get-vx oc
                         increment-pc
                     ]
                     #{001E} [
                         ;;Adds VX to I.
                         m: i
-                        i: i + pick v (get-x oc)
-                        print[{------------------------>Set i:} i {=} m {+ v[x]=} pick v (get-x oc)]
+                        i: i + get-vx oc
+                        print[{------------------------>Set i:} i {=} m {+ v[x]=} get-vx oc]
                         increment-pc
                     ]
                     #{0029} [
                         ;;Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
-                        ;i: 1 + (5 * to-integer pick v (get-x oc))
-                        i: to-integer pick v (get-x oc)
-                        print [{------------------------>Set i:} i {to the value of v[} (get-x oc) {] =} to-integer pick v (get-x oc) {which is the character} (pick memory to-integer (pick v (get-x oc)))]
+                        ;i: 1 + (5 * to-integer get-vx oc)
+                        i: to-integer get-vx oc
+                        print [{------------------------>Set i:} i {to the value of v[} (get-x oc) {] =} to-integer get-vx oc {which is the character} (pick memory to-integer (get-vx oc))]
                         increment-pc    
                     ]
                     #{0033} [
                         ;; Stores BCD representation of VX at address I, I + 1 and I + 2
-                        m: to-integer pick v (get-x oc)
+                        m: to-integer get-vx oc
                         poke memory i (x: remainder m 10)
                         poke memory (i + 1) (((y: remainder m 100) - x) / 10)
                         poke memory (i + 2) ((m - y) / 100)
