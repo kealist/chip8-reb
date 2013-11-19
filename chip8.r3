@@ -2,7 +2,7 @@ REBOL[
     ; -- Core Header attributes --
     title: "Chip8 Emulator"
     file: %chip8.r3
-    version: 0.0.6
+    version: 0.0.7
     date: 2013-11-14/21:03:26
     author: "Joshua Shireman"
     purpose: {To emulate the CHIP8 instruction set interpreter with display}
@@ -39,7 +39,9 @@ REBOL[
         v0.0.5 - 2013-11-19
             -Cleaned up more repetition with new functions get-vx and get-vy
         v0.0.6 - 2013-11-19
-            -Removed extraneous code and changed keyboard control code to be tested.}
+            -Removed extraneous code and changed keyboard control code to be tested.
+        v0.0.7 - 2013-11-19
+            -Substituted vprint for print in preparation for using SLIM.  Cleaned up some various comments and code.  Added a KEYPRESSED? variable initialization}
     ;-  \ history
 
     ;-  / documentation
@@ -49,8 +51,11 @@ REBOL[
     ;-  \ documentation
 ]
 
-load-gui
 
+vprint: :print
+
+load-gui
+keypressed?: none
 moved?: false
 
 stylize [
@@ -183,11 +188,6 @@ chip8: make object! [
         
         ;;load fontset --> Should be in #{0050} to #{00A0} which translates to memory index 81 to 161
         repeat num 80 [poke memory (num) to-integer (pick fontset num)]
-        
-        
-        
-        
-
         print "Chip 8 Emulator Initialized..."
         
         game-names: copy []
@@ -221,10 +221,10 @@ chip8: make object! [
 
                 ;;load game to memory -> 
                 repeat num (length? program) [
-                    ;print reduce ["Setting memory location " (num + 512) " to value of " (pick program num)] 
+                    ;vprint reduce ["Setting memory location " (num + 512) " to value of " (pick program num)] 
                     poke memory (num + 512) to-integer (pick program num)
                 ]
-                print "Chip 8 Emulator Running Program..."
+                vprint "Chip 8 Emulator Running Program..."
                 code: [chip8/emulate-cycle]
                 set-timer/repeat code (0:0:1 / chip8/hertz)
             ]
@@ -280,7 +280,7 @@ chip8: make object! [
     
     fetch-opcode: func [/local u] [
         u: copy #{0000}
-        print [{>>PC:} pc]
+        vprint [{>>PC:} pc]
         poke u 1 to-integer (pick memory pc)
         poke u 2 to-integer (pick memory pc + 1)
         u
@@ -297,7 +297,7 @@ chip8: make object! [
                 switch/default (oc and #{000F}) [
                     #{0000} [                   
                         ;;clear the screen
-                        print [{------------------------>Clearing the screen}]
+                        vprint [{------------------------>Clearing the screen}]
                         gfx-img: make image! to-pair reduce [64 * gfx-scale 32 * gfx-scale] bg-color
                         draw-face/now img1
                         increment-pc
@@ -307,21 +307,21 @@ chip8: make object! [
                         sp: sp - 1
                         pc: pick stack sp
                         increment-pc
-                        print [{------------------------>Returning from subroutine to pc =} pc]
+                        vprint [{------------------------>Returning from subroutine to pc =} pc]
                     ]
                     
                 ] [
                     ;0NNN; Run program at address NNN
                     
                     pc: 1 + to-integer (oc and #{0FFF})
-                    print [{------------------------>Running program at address} pc]
+                    vprint [{------------------------>Running program at address} pc]
                     ;prin "ERROR: Unknown 0x0XXX OPCODE:" print oc 
                     ;increment-pc
                 ]
             ]
             #{1000} [
                 ;; Jumps to address NNN.
-                print [{------------------------>} oc {: Jumping to address} 1 + to-integer (oc and #{0FFF})]
+                vprint [{------------------------>} oc {: Jumping to address} 1 + to-integer (oc and #{0FFF})]
                 pc: 1 + to-integer (oc and #{0FFF})
             ]
             #{2000} [
@@ -331,12 +331,12 @@ chip8: make object! [
                 u: (oc and #{0FFF})
                 ;pc: to-integer (oc and #{0FFF})
                 pc: 1 + to-integer (oc and #{0FFF})
-                print ["------------------------>Subroutine at memory index " pc " = " (pick memory pc) (pick memory (pc + 1))]
+                vprint ["------------------------>Subroutine at memory index " pc " = " (pick memory pc) (pick memory (pc + 1))]
             ]
             #{3000} [
                 ;; Skips the next instruction if VX equals NN.
                 nn: to-integer (oc and #{00FF})
-                print [{------------------------>V[ } (get-x oc) {] =} (get-vx oc) {will skip if equal to} nn {and is} ((get-vx oc) = nn)]
+                vprint [{------------------------>V[ } (get-x oc) {] =} (get-vx oc) {will skip if equal to} nn {and is} ((get-vx oc) = nn)]
                 either ((get-vx oc) = nn) [
                     increment-pc
                     increment-pc
@@ -345,7 +345,7 @@ chip8: make object! [
             #{4000} [
                 ;; Skips the next instruction if VX doesn't equal NN.
                 nn: (oc and #{00FF})
-                print [{------------------------>V[ } (get-x oc) {] =} (get-vx oc) {will skip if not equal to} nn {and is} ((get-vx oc) = nn)]
+                vprint [{------------------------>V[ } (get-x oc) {] =} (get-vx oc) {will skip if not equal to} nn {and is} ((get-vx oc) = nn)]
                 either ((get-vx oc) != nn) [
                     increment-pc
                     increment-pc
@@ -353,7 +353,7 @@ chip8: make object! [
             ]
             #{5000} [
                 ;; Skips the next instruction if VX equals VY.
-                print [{------------------------>v[x]:} (get-vx oc) {v[y]} (get-vy oc) {=} ((get-vx oc) = (get-vy oc))]
+                vprint [{------------------------>v[x]:} (get-vx oc) {v[y]} (get-vy oc) {=} ((get-vx oc) = (get-vy oc))]
                 either ((get-vx oc) = (get-vy oc)) [
                     increment-pc
                     increment-pc
@@ -362,14 +362,14 @@ chip8: make object! [
             #{6000} [
                 ;; Sets VX to NN.
                 nn: to-integer (oc and #{00FF})
-                print [{------------------------>Set V[} (get-x oc) {] to } nn {-->} to-integer nn]
+                vprint [{------------------------>Set V[} (get-x oc) {] to } nn {-->} to-integer nn]
                 set-vx oc nn
                 increment-pc
             ]
             #{7000} [
                 ;; Adds NN to VX.
                 nn: to-integer (oc and #{00FF})
-                print [{------------------------>Adding} nn {to the value of v[} (get-x oc) {]=} get-vx oc {=>} (nn + to-integer (get-vx oc))]
+                vprint [{------------------------>Adding} nn {to the value of v[} (get-x oc) {]=} get-vx oc {=>} (nn + to-integer (get-vx oc))]
                 set-vx oc (remainder (num: nn + (get-vx oc)) 256)
                 if ((num / 256) > 1) [poke v 15 1]
                 increment-pc
@@ -378,31 +378,31 @@ chip8: make object! [
                 switch/default (oc and #{000F}) [
                     #{0000} [
                         ;8XY0;Sets VX to the value of VY.
-                        print [{------------------------>Set v[x]=} (get-x oc) {to} (get-vy oc)]
+                        vprint [{------------------------>Set v[x]=} (get-x oc) {to} (get-vy oc)]
                         set-vx oc (get-vy oc)
                         increment-pc
                     ]
                     #{0001} [
                         ;8XY1;Sets VX to VX or VY.
-                        print [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) or (get-vy oc))]
+                        vprint [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) or (get-vy oc))]
                         set-vx oc ((get-vx oc) or (get-vy oc))
                         increment-pc
                     ]
                     #{0002} [
                         ;8XY2;Sets VX to VX and VY.
-                        print [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) and (get-vy oc))]
+                        vprint [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) and (get-vy oc))]
                         set-vx oc ((get-vx oc) and (get-vy oc))
                         increment-pc
                     ]
                     #{0003} [
                         ;8XY3;Sets VX to VX xor VY.
-                        print [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) xor (get-vy oc))]
+                        vprint [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) xor (get-vy oc))]
                         set-vx oc ((get-vx oc) xor (get-vy oc))
                         increment-pc
                     ]
                     #{0004} [
                         ;; 8XY4 adds register V[x] and V[y], setting v[16] flag if overflowed
-                        print [{------------------------>}]
+                        vprint [{------------------------>}]
                         either (w: get-vy oc) > (255 - x: get-vx oc) [
                             poke v 16 1
                         ] [
@@ -413,22 +413,22 @@ chip8: make object! [
                     ]
                     #{0005} [
                         ;8XY5;VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
-                        print [{------------------------>}]
+                        vprint [{------------------------>}]
                         increment-pc
                     ]
                     #{0006} [
                         ;8XY6;Shifts VX right by one. VF is set to the value of the least significant bit of VX before the shift.
-                        print [{------------------------>}]
+                        vprint [{------------------------>}]
                         increment-pc
                     ]
                     #{0007} [
                         ;8XY6;Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
-                        print [{------------------------>}]
+                        vprint [{------------------------>}]
                         increment-pc
                     ]
                     #{000E} [
                         ;;Shifts VX left by one. VF is set to the value of the most significant bit of VX before the shift.
-                        print [{------------------------>}]
+                        vprint [{------------------------>}]
                         increment-pc
                     ]
                 ] [prin "ERROR: Unknown 0x8XXX OPCODE:" print oc increment-pc]
@@ -436,7 +436,7 @@ chip8: make object! [
             #{9000} [
                 ;; Skips the next instruction if VX doesn't equal VY.
                 nn: to-integer (oc and #{00FF})
-                print [{------------------------>V[ } (get-x oc) {] =} (get-vx oc) {will skip if not equal to} nn {and is} ((get-vx oc) = nn)]
+                vprint [{------------------------>V[ } (get-x oc) {] =} (get-vx oc) {will skip if not equal to} nn {and is} ((get-vx oc) = nn)]
                 either ((get-vx oc) != nn) [
                     increment-pc
                     increment-pc
@@ -444,7 +444,7 @@ chip8: make object! [
             ]
             #{A000} [
                 ;;Sets I to the address NNN.
-                print[{------------------------>Set I to} to-integer (oc and #{0FFF})]
+                vprint[{------------------------>Set I to} to-integer (oc and #{0FFF})]
                 i: to-integer (oc and #{0FFF})
                 increment-pc
             ]
@@ -452,14 +452,14 @@ chip8: make object! [
                 ;;Jumps to the address NNN plus V0.
                 
                 nnn: to-integer (oc and #{0FFF})
-                print [{------------------------>Jump to address} nnn + (pick v 0)]
+                vprint [{------------------------>Jump to address} nnn + (pick v 0)]
                 pc: nnn + (pick v 0)
             ]
             #{C000} [
                 ;;Sets VX to a random number and NN.
                 nn: to-integer oc and #{00FF}
                 m: random 256
-                print[{------------------------>Setting v[} get-x oc {]:} m {and} nn {=} m and nn]
+                vprint[{------------------------>Setting v[} get-x oc {]:} m {and} nn {=} m and nn]
                 set-vx oc to-integer ((random 256) and nn)
                 increment-pc
             ]
@@ -471,26 +471,26 @@ chip8: make object! [
                 poke v 16 0
                 x-coord: (to-integer get-vx oc)
                 y-coord: (to-integer get-vy oc)
-                print [{------------------------>Draw sprite} i {at} x-coord {x} y-coord {of height} height]
+                vprint [{------------------------>Draw sprite} i {at} x-coord {x} y-coord {of height} height]
                 
                 repeat num height [
                     ;print (i + num - 1)
                     r: (pick memory (i + num))
                     w: enbase/base (append copy #{} r) 2
-                    print [{pattern is} w]
+                    vprint [{pattern is} w]
                     ;;m corresponds to the number of bits in m
                     repeat m 8 [
                         if ((first w) = #"1") [
                             coord-pair: to-pair reduce [(gfx-scale * (x-coord + m - 1)) (gfx-scale * (y-coord + num - 1))]
                             ;;Collision Detection
                             either  ((pick gfx-img coord-pair) = bg-color) [
-                                print {Collision detected}
+                                vprint {Collision detected}
                                 
                                 poke v 16 1
                                 repeat num-y gfx-scale [
                                     repeat num-x gfx-scale [
                                         draw-pair: coord-pair + to-pair reduce [num-x - 1 num-y - 1]
-                                        ;print [{Drew at} draw-pair {from} coord-pair]
+                                        ;vprint [{Drew at} draw-pair {from} coord-pair]
                                         poke gfx-img draw-pair ink-color
                                     ]
                                 ]
@@ -500,7 +500,7 @@ chip8: make object! [
                                 repeat num-y gfx-scale [
                                     repeat num-x gfx-scale [
                                         draw-pair: coord-pair + to-pair reduce [num-x - 1 num-y - 1]
-                                        ;print [{Drew at} draw-pair {from} coord-pair]
+                                        ;vprint [{Drew at} draw-pair {from} coord-pair]
                                         poke gfx-img draw-pair bg-color
                                     ]
                                 ]                       
@@ -517,7 +517,7 @@ chip8: make object! [
                 switch/default (oc and #{00FF}) [
                     #{009E} [
                         ;;Skips the next instruction if the key stored in VX is pressed.
-                        print[{------------------------>}]
+                        vprint[{------------------------>}]
                         either ((get-vx oc) = keypressed?) [
                             increment-pc
                             increment-pc
@@ -527,7 +527,7 @@ chip8: make object! [
                     ]
                     #{00A1} [
                         ;;Skips the next instruction if the key stored in VX isn't pressed.
-                        print[{------------------------>}]
+                        vprint[{------------------------>}]
                         either (get-vx oc) = keypressed? [
                             increment-pc
                         ][
@@ -541,38 +541,38 @@ chip8: make object! [
                 switch/default (oc and #{00FF}) [
                     #{0007} [
                         ;;Sets VX to the value of the delay timer.
-                        print[{------------------------>Set V[} get-x oc {:} (get-timer-value delay-timer)]
+                        vprint[{------------------------>Set V[} get-x oc {:} (get-timer-value delay-timer)]
                         set-vx oc (get-timer-value delay-timer)
                         increment-pc
                     ]
                     #{000A} [
                         ;;A key press is awaited, and then stored in VX.
-                        print[{------------------------>}]
+                        vprint[{------------------------>}]
                         increment-pc
                     ]
                     #{0015} [
                         ;;Sets the delay timer to VX.
-                        print[{------------------------>Set delay-timer to} get-vx oc]
-                        delay-timer: set-timer [print "Delay timer done"] get-vx oc
+                        vprint[{------------------------>Set delay-timer to} get-vx oc]
+                        delay-timer: set-timer [vprint "Delay timer done"] get-vx oc
                         increment-pc
                     ]
                     #{0018} [
                         ;;Sets the sound timer to VX.
-                        print[{------------------------>Play Sound (unimplemented)}]
-                        sound-timer: set-timer [print BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEP!] get-vx oc
+                        vprint[{------------------------>Play Sound (unimplemented)}]
+                        sound-timer: set-timer [vprint BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEP!] get-vx oc
                         increment-pc
                     ]
                     #{001E} [
                         ;;Adds VX to I.
                         m: i
                         i: i + get-vx oc
-                        print[{------------------------>Set i:} i {=} m {+ v[x]=} get-vx oc]
+                        vprint[{------------------------>Set i:} i {=} m {+ v[x]=} get-vx oc]
                         increment-pc
                     ]
                     #{0029} [
                         ;;Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
                         i: to-integer get-vx oc
-                        print [{------------------------>Set i:} i {to the value of v[} (get-x oc) {] =} to-integer get-vx oc {which is the character} (pick memory to-integer (get-vx oc))]
+                        vprint [{------------------------>Set i:} i {to the value of v[} (get-x oc) {] =} to-integer get-vx oc {which is the character} (pick memory to-integer (get-vx oc))]
                         increment-pc    
                     ]
                     #{0033} [
@@ -581,13 +581,13 @@ chip8: make object! [
                         poke memory i (x: remainder m 10)
                         poke memory (i + 1) (((y: remainder m 100) - x) / 10)
                         poke memory (i + 2) ((m - y) / 100)
-                        print [{------------------------>Set BCD at memory[i]:} x {memory[i+1]:} y {memory [i+2]:} (m - y) / 100]
+                        vprint [{------------------------>Set BCD at memory[i]:} x {memory[i+1]:} y {memory [i+2]:} (m - y) / 100]
                         increment-pc
                     ]
                     #{0055} [
                         ;;Stores V0 to VX in memory starting at address I.
                         repeat num 16 [
-                            print [{------------------------>Set memory[} (i - 1 + num) {] =} (pick v num)]
+                            vprint [{------------------------>Set memory[} (i - 1 + num) {] =} (pick v num)]
                             poke memory (i - 1 + num) (pick v num)
                         ]
                         increment-pc
@@ -595,7 +595,7 @@ chip8: make object! [
                     #{0065} [
                         ;;Fills V0 to VX with values from memory starting at address I.
                         repeat num 16 [
-                            print [{------------------------>Set V[} num {] =} (pick memory (i + num - 1))]
+                            vprint [{------------------------>Set V[} num {] =} (pick memory (i + num - 1))]
                             poke v num (pick memory (i + num - 1))
                         ]
                         increment-pc
@@ -615,20 +615,20 @@ chip8: make object! [
     ]
     emulate-cycle: does [
         opcode: fetch-opcode
-        print [{>Fetched opcode:} opcode]
+        vprint [{>Fetched opcode:} opcode]
         decode-opcode opcode
         update-timers
     ]
 ]
 
-print "Chip 8 Emulator Starting..."
+vprint "Chip 8 Emulator Starting..."
 
 chip8/initialize
 
-print "Clearing Timers"
+vprint "Clearing Timers"
 foreach [t code] guie/timers [
     clear-timer t
 ]
 
-print "Chip 8 Emulator Halting..."
+vprint "Chip 8 Emulator Halting..."
 halt
