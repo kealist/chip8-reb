@@ -2,7 +2,7 @@ REBOL[
     ; -- Core Header attributes --
     title: "Chip8 Emulator"
     file: %chip8.r3
-    version: 0.0.5
+    version: 0.0.6
     date: 2013-11-14/21:03:26
     author: "Joshua Shireman"
     purpose: {To emulate the CHIP8 instruction set interpreter with display}
@@ -37,7 +37,9 @@ REBOL[
         v0.0.4 - 2013-11-19
             - Cleaned up some code repetition by creating two new functions set-vx and set-vy
         v0.0.5 - 2013-11-19
-            -Cleaned up more repetition with new functions get-vx and get-vy}
+            -Cleaned up more repetition with new functions get-vx and get-vy
+        v0.0.6 - 2013-11-19
+            -Removed extraneous code and changed keyboard control code to be tested.}
     ;-  \ history
 
     ;-  / documentation
@@ -46,10 +48,6 @@ REBOL[
          Currently it requires a folder full of %games/}
     ;-  \ documentation
 ]
-
-
-
-
 
 load-gui
 
@@ -67,23 +65,23 @@ stylize [
                 switch arg/type [
                     key [
                         ;here you can handle key-down events
-                        switch/default arg/key [
-                            #"1" [print 1]
-                            #"2" [print 2]
-                            #"3" [print 3]
-                            #"4" [print 4]
-                            #"q" [print 5]
-                            #"w" [print 6]
-                            #"e" [print 7]
-                            #"r" [print 8]
-                            #"a" [print 9]
-                            #"s" [print 10]
-                            #"d" [print 11]
-                            #"f" [print 12]
-                            #"z" [print 13]
-                            #"x" [print 14]
-                            #"c" [print 15]
-                            #"v" [print 16]
+                        keypressed?: switch/default arg/key [
+                            #"1" [1]
+                            #"2" [2]
+                            #"3" [3]
+                            #"4" [4]
+                            #"q" [5]
+                            #"w" [6]
+                            #"e" [7]
+                            #"r" [8]
+                            #"a" [9]
+                            #"s" [10]
+                            #"d" [11]
+                            #"f" [12]
+                            #"z" [13]
+                            #"x" [14]
+                            #"c" [15]
+                            #"v" [16]
                             
                         ][
                             false
@@ -124,7 +122,6 @@ game-list: load-files %games/
 chip8: make object! [
     ;;opcode must be 2 bytes
     opcode: none
-
     
     ; 4k memory total
     ;;;0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
@@ -133,7 +130,6 @@ chip8: make object! [
 
     program: none
     memory: #{00}
-    ;memory-test: ;
 
     ;CPU Register, 15 8-bit registers, 16th is carry flag
     v: #{00}
@@ -154,7 +150,7 @@ chip8: make object! [
     hertz: 20
     
     ;Timers count at 60 Hz. When set above zero they will count down to zero
-    ;The system’s buzzer sounds whenever the sound timer reaches zero.
+    ;The system's buzzer sounds whenever the sound timer reaches zero.
     delay-timer: 0
     sound-timer: 0
     
@@ -522,7 +518,7 @@ chip8: make object! [
                     #{009E} [
                         ;;Skips the next instruction if the key stored in VX is pressed.
                         print[{------------------------>}]
-                        either false [
+                        either ((get-vx oc) = keypressed?) [
                             increment-pc
                             increment-pc
                         ][
@@ -532,6 +528,12 @@ chip8: make object! [
                     #{00A1} [
                         ;;Skips the next instruction if the key stored in VX isn't pressed.
                         print[{------------------------>}]
+                        either (get-vx oc) = keypressed? [
+                            increment-pc
+                        ][
+                            increment-pc
+                            increment-pc
+                        ]
                     ]
                 ] [prin "ERROR: Unknown 0xEXXX OPCODE:" print oc increment-pc]
             ]
@@ -540,7 +542,6 @@ chip8: make object! [
                     #{0007} [
                         ;;Sets VX to the value of the delay timer.
                         print[{------------------------>Set V[} get-x oc {:} (get-timer-value delay-timer)]
-                        ;print (get-timer-value delay-timer)
                         set-vx oc (get-timer-value delay-timer)
                         increment-pc
                     ]
@@ -570,7 +571,6 @@ chip8: make object! [
                     ]
                     #{0029} [
                         ;;Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
-                        ;i: 1 + (5 * to-integer get-vx oc)
                         i: to-integer get-vx oc
                         print [{------------------------>Set i:} i {to the value of v[} (get-x oc) {] =} to-integer get-vx oc {which is the character} (pick memory to-integer (get-vx oc))]
                         increment-pc    
@@ -603,26 +603,6 @@ chip8: make object! [
                 ] [prin "ERROR: Unknown 0xFXXX OPCODE:" print oc increment-pc]
             ]
         ] [prin "ERROR: Unknown OPCODE:" print oc increment-pc]
-    ]
-    to-bcd: func [bin /local bcd-table w x y z] [
-        bcd-table: [
-            0   [2#{00000000}]
-            1   [2#{00010001}]
-            2   [2#{00100010}]
-            3   [2#{00110011}]
-            4   [2#{01000100}]
-            5   [2#{01010101}]
-            6   [2#{01100110}]
-            7   [2#{01110111}]
-            8   [2#{10001000}]
-            9   [2#{10011001}]
-        ]
-        w: to-integer bin
-        x: remainder w 10
-        y: ((remainder w 100) - x) / 10
-        z: (w -(remainder w 100)) / 100
-        append (#{00} or ((switch z bcd-table) and #{0F}))
-            ((switch x bcd-table) and #{0F}) or ((switch y bcd-table) and #{F0})
     ]
 
     update-gfx: does [
