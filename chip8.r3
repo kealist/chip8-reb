@@ -198,7 +198,7 @@ chip8: make object! [
         ]
         program: pick game-data 1
         
-        view/maximized m: layout [
+        view m: layout [
             drop-down game-names on-action [
                 set 'program pick game-data (get-face face)
             ]
@@ -233,10 +233,10 @@ chip8: make object! [
                     clear-timer t
                 ]
             ]
-            img1: image options [min-size: 640x320]
+            screen: image ; options [min-size: 640x320 max-size: 640x320]
             when [enter] on-action [        
                 ;initialize game object             
-                set-face img1 gfx-img
+                set-face screen gfx-img
             ]
         ] 
     ]
@@ -244,6 +244,15 @@ chip8: make object! [
         repeat num (length? program) [
             poke memory (num + 512) (pick program num)
         ]
+    ]
+
+    get-x: func [
+        o-c [binary!]
+    ] [
+        (1 + shift to-integer (o-c and #{0F00}) -8)
+    ]
+    get-y: func [o-c] [
+        (1 + shift to-integer (o-c and #{00F0}) -4)
     ]
     get-vx: func [
         o-c [binary!]
@@ -267,15 +276,7 @@ chip8: make object! [
     ][
         poke v (get-y o-c) value
     ]
-    get-x: func [
-        o-c [binary!]
-    ] [
-        (1 + shift to-integer (o-c and #{0F00}) -8)
-    ]
-    get-y: func [o-c] [
-        (1 + shift to-integer (o-c and #{00F0}) -4)
-    ]
-    
+
     increment-pc: does [pc: pc + 2]
     
     fetch-opcode: func [/local u] [
@@ -299,7 +300,7 @@ chip8: make object! [
                         ;;clear the screen
                         vprint [{------------------------>Clearing the screen}]
                         gfx-img: make image! to-pair reduce [64 * gfx-scale 32 * gfx-scale] bg-color
-                        draw-face/now img1
+                        draw-face/now screen
                         increment-pc
                     ]
                     #{000E} [
@@ -336,7 +337,7 @@ chip8: make object! [
             #{3000} [
                 ;; Skips the next instruction if VX equals NN.
                 nn: to-integer (oc and #{00FF})
-                vprint [{------------------------>V[ } (get-x oc) {] =} (get-vx oc) {will skip if equal to} nn {and is} ((get-vx oc) = nn)]
+                vprint [{------------------------>V[} (get-x oc) {] =} (get-vx oc) {will skip if equal to} nn {and is} ((get-vx oc) = nn)]
                 either ((get-vx oc) = nn) [
                     increment-pc
                     increment-pc
@@ -345,7 +346,7 @@ chip8: make object! [
             #{4000} [
                 ;; Skips the next instruction if VX doesn't equal NN.
                 nn: (oc and #{00FF})
-                vprint [{------------------------>V[ } (get-x oc) {] =} (get-vx oc) {will skip if not equal to} nn {and is} ((get-vx oc) = nn)]
+                vprint [{------------------------>V[} (get-x oc) {] =} (get-vx oc) {will skip if not equal to} nn {and is} ((get-vx oc) = nn)]
                 either ((get-vx oc) != nn) [
                     increment-pc
                     increment-pc
@@ -485,7 +486,6 @@ chip8: make object! [
                             ;;Collision Detection
                             either  ((pick gfx-img coord-pair) = bg-color) [
                                 vprint {Collision detected}
-                                
                                 poke v 16 1
                                 repeat num-y gfx-scale [
                                     repeat num-x gfx-scale [
@@ -517,7 +517,7 @@ chip8: make object! [
                 switch/default (oc and #{00FF}) [
                     #{009E} [
                         ;;Skips the next instruction if the key stored in VX is pressed.
-                        vprint[{------------------------>}]
+                        vprint [{------------------------>}]
                         either ((get-vx oc) = keypressed?) [
                             increment-pc
                             increment-pc
@@ -527,7 +527,7 @@ chip8: make object! [
                     ]
                     #{00A1} [
                         ;;Skips the next instruction if the key stored in VX isn't pressed.
-                        vprint[{------------------------>}]
+                        vprint [{------------------------>}]
                         either (get-vx oc) = keypressed? [
                             increment-pc
                         ][
@@ -541,24 +541,24 @@ chip8: make object! [
                 switch/default (oc and #{00FF}) [
                     #{0007} [
                         ;;Sets VX to the value of the delay timer.
-                        vprint[{------------------------>Set V[} get-x oc {:} (get-timer-value delay-timer)]
+                        vprint [{------------------------>Set V[} get-x oc {:} (get-timer-value delay-timer)]
                         set-vx oc (get-timer-value delay-timer)
                         increment-pc
                     ]
                     #{000A} [
                         ;;A key press is awaited, and then stored in VX.
-                        vprint[{------------------------>}]
+                        vprint [{------------------------>}]
                         increment-pc
                     ]
                     #{0015} [
                         ;;Sets the delay timer to VX.
-                        vprint[{------------------------>Set delay-timer to} get-vx oc]
+                        vprint [{------------------------>Set delay-timer to} get-vx oc]
                         delay-timer: set-timer [vprint "Delay timer done"] get-vx oc
                         increment-pc
                     ]
                     #{0018} [
                         ;;Sets the sound timer to VX.
-                        vprint[{------------------------>Play Sound (unimplemented)}]
+                        vprint [{------------------------>Play Sound (unimplemented)}]
                         sound-timer: set-timer [vprint BEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEP!] get-vx oc
                         increment-pc
                     ]
@@ -566,7 +566,7 @@ chip8: make object! [
                         ;;Adds VX to I.
                         m: i
                         i: i + get-vx oc
-                        vprint[{------------------------>Set i:} i {=} m {+ v[x]=} get-vx oc]
+                        vprint [{------------------------>Set i:} i {=} m {+ v[x]=} get-vx oc]
                         increment-pc
                     ]
                     #{0029} [
@@ -606,7 +606,7 @@ chip8: make object! [
     ]
 
     update-gfx: does [
-        draw-face/now img1; gfx-img
+        draw-face/now screen; gfx-img
         ;wait 1
     ]
     
