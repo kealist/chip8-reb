@@ -2,7 +2,7 @@ REBOL[
     ; -- Core Header attributes --
     title: "Chip8 Emulator"
     file: %chip8.r3
-    version: 0.0.7
+    version: 0.0.8
     date: 2013-11-14/21:03:26
     author: "Joshua Shireman"
     purpose: {To emulate the CHIP8 instruction set interpreter with display}
@@ -41,7 +41,9 @@ REBOL[
         v0.0.6 - 2013-11-19
             -Removed extraneous code and changed keyboard control code to be tested.
         v0.0.7 - 2013-11-19
-            -Substituted vprint for print in preparation for using SLIM.  Cleaned up some various comments and code.  Added a KEYPRESSED? variable initialization}
+            -Substituted vprint for print in preparation for using SLIM.  Cleaned up some various comments and code.  Added a KEYPRESSED? variable initialization
+        v0.0.8 - 2013-11-20
+            -fixed collision detection by adding alpha channel to logic test}
     ;-  \ history
 
     ;-  / documentation
@@ -50,6 +52,7 @@ REBOL[
          Currently it requires a folder full of %games/}
     ;-  \ documentation
 ]
+
 
 
 vprint: :print
@@ -484,8 +487,10 @@ chip8: make object! [
                         if ((first w) = #"1") [
                             coord-pair: to-pair reduce [(gfx-scale * (x-coord + m - 1)) (gfx-scale * (y-coord + num - 1))]
                             ;;Collision Detection
-                            either  ((pick gfx-img coord-pair) = bg-color) [
+                            ;;vprint [{Collision Detection:} (pick gfx-img coord-pair)  bg-color "="(pick gfx-img coord-pair) = bg-color]
+                            either  ((pick gfx-img coord-pair) = 0.0.0.255) [
                                 vprint {Collision detected}
+                                ;;Draw a GFX-SCALE x GFX-SCALE pixel
                                 poke v 16 1
                                 repeat num-y gfx-scale [
                                     repeat num-x gfx-scale [
