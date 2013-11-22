@@ -2,7 +2,7 @@ REBOL[
     ; -- Core Header attributes --
     title: "Chip8 Emulator"
     file: %chip8.r3
-    version: 0.0.8
+    version: 0.0.9
     date: 2013-11-14/21:03:26
     author: "Joshua Shireman"
     purpose: {To emulate the CHIP8 instruction set interpreter with display}
@@ -43,21 +43,25 @@ REBOL[
         v0.0.7 - 2013-11-19
             -Substituted vprint for print in preparation for using SLIM.  Cleaned up some various comments and code.  Added a KEYPRESSED? variable initialization
         v0.0.8 - 2013-11-20
-            -fixed collision detection by adding alpha channel to logic test}
+            -Fixed collision detection by adding alpha channel to logic test
+        v0.0.9 - 2013-11-22
+            -Added code for several more opcodes.  Made a change to allow for r3-gui.r3 file since load-gui doesn't work when netowrok issues happen.}
     ;-  \ history
 
     ;-  / documentation
     documentation: {    
-         Only requirements are to run the file with (do %chip8.r3) and
+         This Chip8 emulator requires Saphirions Rebol 3 with GUI and the R3-GUI file.
          Currently it requires a folder full of %games/}
     ;-  \ documentation
 ]
 
 
 
+
+
 vprint: :print
 
-load-gui
+either exists? %r3-gui.r3 [do %r3-gui.r3][load-gui]
 keypressed?: none
 moved?: false
 
@@ -92,7 +96,7 @@ stylize [
                             #"v" [16]
                             
                         ][
-                            false
+                            none
                         ]
                     ]
                     key-up [
@@ -172,7 +176,6 @@ chip8: make object! [
             0
         ]
     ]
-    
 
     stack: copy array 16
     sp: none
@@ -303,6 +306,7 @@ chip8: make object! [
                         ;;clear the screen
                         vprint [{------------------------>Clearing the screen}]
                         gfx-img: make image! to-pair reduce [64 * gfx-scale 32 * gfx-scale] bg-color
+                        set-face screen gfx-img 
                         draw-face/now screen
                         increment-pc
                     ]
@@ -406,33 +410,57 @@ chip8: make object! [
                     ]
                     #{0004} [
                         ;; 8XY4 adds register V[x] and V[y], setting v[16] flag if overflowed
-                        vprint [{------------------------>}]
-                        either (w: get-vy oc) > (255 - x: get-vx oc) [
+                        vprint [{------------------------>Set v[x]=} get-vx oc {+} get-vy oc]
+                        either (y: get-vy oc) > (255 - x: get-vx oc) [
                             poke v 16 1
                         ] [
                             poke v 16 0
                         ]
-                        set-vy oc (w + x)
+                        set-vx oc (x + y)
                         increment-pc
                     ]
                     #{0005} [
                         ;8XY5;VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
-                        vprint [{------------------------>}]
+                        vprint [{------------------------>Set v[x]=} get-vx oc {-} get-vy oc]
+                        either (y: get-vy oc) > (x: get-vx oc) [
+                            poke v 16 0
+                        ] [
+                            poke v 16 1
+                        ]
+                        either (x - y) > 0 [
+                            set-vx oc (x - y)
+                        ][
+                            set-vx oc 0
+                        ]
                         increment-pc
                     ]
                     #{0006} [
                         ;8XY6;Shifts VX right by one. VF is set to the value of the least significant bit of VX before the shift.
                         vprint [{------------------------>}]
+                        poke v 16 (to-binary (get-vx oc)) and #{0000000000000001}
+                        set-vx oc (shift (get-vx oc) -1)
                         increment-pc
                     ]
                     #{0007} [
                         ;8XY6;Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
-                        vprint [{------------------------>}]
+                        vprint [{------------------------>Set v[x]=} get-vx oc {-} get-vy oc]
+                        either (y: get-vy oc) < (x: get-vx oc) [
+                            poke v 16 0
+                        ] [
+                            poke v 16 1
+                        ]
+                        either (y - x) > 0 [
+                            set-vx oc (y - x)
+                        ][
+                            set-vx oc 0
+                        ]
                         increment-pc
                     ]
                     #{000E} [
                         ;;Shifts VX left by one. VF is set to the value of the most significant bit of VX before the shift.
                         vprint [{------------------------>}]
+                        poke v 16 (to-binary (get-vx oc)) and #{0000000000000080}
+                        set-vx oc (shift (get-vx oc) 1)
                         increment-pc
                     ]
                 ] [prin "ERROR: Unknown 0x8XXX OPCODE:" print oc increment-pc]
@@ -522,7 +550,7 @@ chip8: make object! [
                 switch/default (oc and #{00FF}) [
                     #{009E} [
                         ;;Skips the next instruction if the key stored in VX is pressed.
-                        vprint [{------------------------>}]
+                        vprint [{------------------------>key stored is:} (get-vx oc) {. keypressed? =} keypressed? {. Skipped?} ((get-vx oc) = keypressed?)]
                         either ((get-vx oc) = keypressed?) [
                             increment-pc
                             increment-pc
@@ -532,7 +560,7 @@ chip8: make object! [
                     ]
                     #{00A1} [
                         ;;Skips the next instruction if the key stored in VX isn't pressed.
-                        vprint [{------------------------>}]
+                        vprint [{------------------------>key stored is:} (get-vx oc) {. keypressed? =} keypressed? {. Skipped?} not ((get-vx oc) = keypressed?)]
                         either (get-vx oc) = keypressed? [
                             increment-pc
                         ][
@@ -553,6 +581,7 @@ chip8: make object! [
                     #{000A} [
                         ;;A key press is awaited, and then stored in VX.
                         vprint [{------------------------>}]
+                        until [not none? key: keypressed?] [set-vx oc key]
                         increment-pc
                     ]
                     #{0015} [
