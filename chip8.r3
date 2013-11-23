@@ -55,8 +55,35 @@ REBOL[
     ;-  \ documentation
 ]
 
+keys: copy [
+	false false false false 
+	false false false false 
+	false false false false
+	false false false false
+]
 
+flip-key: func [
+	key [char!]
+	/local table
+][
+   table: [
+		#"1" 1 #"2" 2 #"3" 3 #"4" 4
+		#"q" 5 #"w" 6 #"e" 7 #"r" 8
+		#"a" 9 #"s" 10 #"d" 11 #"f" 12
+		#"z" 13 #"x" 14 #"c" 15 #"v" 16
+	]
+   key: select table key
+   if not none? key [
+		either (pick keys key) = 'false [
+			poke keys key 'true
+			print keys
+		][
+			poke keys key 'false
+			print keys
+		]
+	]
 
+]
 
 
 vprint: :print
@@ -77,30 +104,11 @@ stylize [
                 switch arg/type [
                     key [
                         ;here you can handle key-down events
-                        keypressed?: switch/default arg/key [
-                            #"1" [1]
-                            #"2" [2]
-                            #"3" [3]
-                            #"4" [4]
-                            #"q" [5]
-                            #"w" [6]
-                            #"e" [7]
-                            #"r" [8]
-                            #"a" [9]
-                            #"s" [10]
-                            #"d" [11]
-                            #"f" [12]
-                            #"z" [13]
-                            #"x" [14]
-                            #"c" [15]
-                            #"v" [16]
-                            
-                        ][
-                            none
-                        ]
+                        flip-key arg/key 
                     ]
                     key-up [
                         ;here you can handle key-up events
+						flip-key arg/key 
                     ]
                 ]
                 ;for example filter out faces that shouldn't get the system key events (for example editable styles)
@@ -549,9 +557,11 @@ chip8: make object! [
             #{E000} [
                 switch/default (oc and #{00FF}) [
                     #{009E} [
-                        ;;Skips the next instruction if the key stored in VX is pressed.
-                        vprint [{------------------------>key stored is:} (get-vx oc) {. keypressed? =} keypressed? {. Skipped?} ((get-vx oc) = keypressed?)]
-                        either ((get-vx oc) = keypressed?) [
+                        ;;Skip next instruction if key with the value of Vx is pressed.
+						;;Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
+						k: pick keys ((get-vx oc) + 1) 
+                        vprint [{------------------------>key stored is:} (get-vx oc) {. k =} k {. Skipped?} k]
+						either (k = 'true) [
                             increment-pc
                             increment-pc
                         ][
@@ -559,9 +569,11 @@ chip8: make object! [
                         ]
                     ]
                     #{00A1} [
-                        ;;Skips the next instruction if the key stored in VX isn't pressed.
-                        vprint [{------------------------>key stored is:} (get-vx oc) {. keypressed? =} keypressed? {. Skipped?} not ((get-vx oc) = keypressed?)]
-                        either (get-vx oc) = keypressed? [
+                        ;;Skip next instruction if key with the value of Vx is not pressed.
+						;;Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
+						k: pick keys ((get-vx oc) + 1)
+                        vprint [{------------------------>key stored is:} (get-vx oc) {. k =} k {. Skipped?} (not k)]
+                        either (k = 'true) [
                             increment-pc
                         ][
                             increment-pc
