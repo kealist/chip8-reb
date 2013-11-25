@@ -2,7 +2,7 @@ REBOL[
 	; -- Core Header attributes --
 	title: "Chip8 Emulator"
 	file: %chip8.r3
-	version: 0.0.10
+	version: 0.0.11
 	date: 2013-11-14/21:03:26
 	author: "Joshua Shireman"
 	purpose: {To emulate the CHIP8 instruction set interpreter with display}
@@ -47,7 +47,9 @@ REBOL[
 		v0.0.9 - 2013-11-22
 			-Added code for several more opcodes.  Made a change to allow for r3-gui.r3 file since load-gui doesn't work when netowrok issues happen.
 		v0.0.10 - 2013-11-22
-			-Updated keyboard control system and changed spaces to tabs}
+			-Updated keyboard control system and changed spaces to tabs
+		v0.0.11 - 2013-11-24
+			-Cleaned up debug and a couple v16 errors}
 	;-  \ history
 
 	;-  / documentation
@@ -56,6 +58,7 @@ REBOL[
 		 Currently it requires a folder full of %games/}
 	;-  \ documentation
 ]
+
 
 
 keys: copy [
@@ -386,39 +389,39 @@ chip8: make object! [
 				;; Adds NN to VX.
 				nn: to-integer (oc and #{00FF})
 				vprint [{------------------------>Adding} nn {to the value of v[} (get-x oc) {]=} get-vx oc {=>} (nn + to-integer (get-vx oc))]
-				set-vx oc (remainder (num: nn + (get-vx oc)) 256)
-				if ((num / 256) > 1) [poke v 15 1]
+				set-vx oc nn + (get-vx oc) ;;(remainder (num: nn + (get-vx oc)) 256)
+				;either ((num / 256) > 1) [poke v 16 1] [poke v 16 0]
 				increment-pc
 			]
 			#{8000} [
 				switch/default (oc and #{000F}) [
 					#{0000} [
 						;8XY0;Sets VX to the value of VY.
-						vprint [{------------------------>Set v[x]=} (get-x oc) {to} (get-vy oc)]
+						vprint [{------------------------Set V[} (get-x oc) {] to } (get-vy oc)]
 						set-vx oc (get-vy oc)
 						increment-pc
 					]
 					#{0001} [
 						;8XY1;Sets VX to VX or VY.
-						vprint [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) or (get-vy oc))]
+						vprint [{------------------------>Set V[} (get-x oc) {] to } ((get-vx oc) or (get-vy oc))]
 						set-vx oc ((get-vx oc) or (get-vy oc))
 						increment-pc
 					]
 					#{0002} [
 						;8XY2;Sets VX to VX and VY.
-						vprint [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) and (get-vy oc))]
+						vprint [{------------------------>Set V[} (get-x oc) {] to } ((get-vx oc) and (get-vy oc))]
 						set-vx oc ((get-vx oc) and (get-vy oc))
 						increment-pc
 					]
 					#{0003} [
 						;8XY3;Sets VX to VX xor VY.
-						vprint [{------------------------>Set v[x]=} (get-x oc) {to} ((get-vx oc) xor (get-vy oc))]
+						vprint [{------------------------>Set V[} (get-x oc) {] to } ((get-vx oc) xor (get-vy oc))]
 						set-vx oc ((get-vx oc) xor (get-vy oc))
 						increment-pc
 					]
 					#{0004} [
 						;; 8XY4 adds register V[x] and V[y], setting v[16] flag if overflowed
-						vprint [{------------------------>Set v[x]=} get-vx oc {+} get-vy oc]
+						vprint [{------------------------>Set V[} (get-x oc) {] to } get-vx oc {+} get-vy oc]
 						either (y: get-vy oc) > (255 - x: get-vx oc) [
 							poke v 16 1
 						] [
@@ -429,7 +432,7 @@ chip8: make object! [
 					]
 					#{0005} [
 						;8XY5;VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
-						vprint [{------------------------>Set v[x]=} get-vx oc {-} get-vy oc]
+						vprint [{------------------------>Set V[} (get-x oc) {] to } get-vx oc {-} get-vy oc]
 						either (y: get-vy oc) > (x: get-vx oc) [
 							poke v 16 0
 						] [
@@ -444,14 +447,14 @@ chip8: make object! [
 					]
 					#{0006} [
 						;8XY6;Shifts VX right by one. VF is set to the value of the least significant bit of VX before the shift.
-						vprint [{------------------------>}]
-						poke v 16 (to-binary (get-vx oc)) and #{0000000000000001}
+						vprint [{------------------------>Set V[} (get-x oc) {] from} (get-vx oc) {to (shifted right)} (shift (get-vx oc) -1)]
+						poke v 16 to-integer (to-binary (get-vx oc)) and #{0000000000000001}
 						set-vx oc (shift (get-vx oc) -1)
 						increment-pc
 					]
 					#{0007} [
 						;8XY6;Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
-						vprint [{------------------------>Set v[x]=} get-vx oc {-} get-vy oc]
+						vprint [{------------------------>Set V[} (get-x oc) {] to } get-vx oc {-} get-vy oc]
 						either (y: get-vy oc) < (x: get-vx oc) [
 							poke v 16 0
 						] [
@@ -466,7 +469,7 @@ chip8: make object! [
 					]
 					#{000E} [
 						;;Shifts VX left by one. VF is set to the value of the most significant bit of VX before the shift.
-						vprint [{------------------------>}]
+						vprint [{------------------------>Set V[} (get-x oc) {] from} (get-vx oc) {to (shifted left)} (shift (get-vx oc) 1)]
 						poke v 16 (to-binary (get-vx oc)) and #{0000000000000080}
 						set-vx oc (shift (get-vx oc) 1)
 						increment-pc
@@ -492,8 +495,8 @@ chip8: make object! [
 				;;Jumps to the address NNN plus V0.
 				
 				nnn: to-integer (oc and #{0FFF})
-				vprint [{------------------------>Jump to address} nnn + (pick v 0)]
-				pc: nnn + (pick v 0)
+				vprint [{------------------------>Jump to address} nnn + (pick v 1)]
+				pc: nnn + (pick v 1)
 			]
 			#{C000} [
 				;;Sets VX to a random number and NN.
@@ -593,7 +596,7 @@ chip8: make object! [
 					#{000A} [
 						;;A key press is awaited, and then stored in VX.
 						vprint [{------------------------>Waiting for key press....}]
-						until [any k: keys wait 1]
+						while [any k: keys] [wait 1]
 						while [(first k) = 'false] [k: next k]
 						set-vx oc (index? k)
 						increment-pc
@@ -626,7 +629,7 @@ chip8: make object! [
 					#{0033} [
 						;; Stores BCD representation of VX at address I, I + 1 and I + 2
 						m: to-integer get-vx oc
-						poke memory i (x: remainder m 10)
+						poke memory (i) (x: remainder m 10)
 						poke memory (i + 1) (((y: remainder m 100) - x) / 10)
 						poke memory (i + 2) ((m - y) / 100)
 						vprint [{------------------------>Set BCD at memory[i]:} x {memory[i+1]:} y {memory [i+2]:} (m - y) / 100]
@@ -635,16 +638,16 @@ chip8: make object! [
 					#{0055} [
 						;;Stores V0 to VX in memory starting at address I.
 						repeat num 16 [
-							vprint [{------------------------>Set memory[} (i - 1 + num) {] =} (pick v num)]
-							poke memory (i - 1 + num) (pick v num)
+							vprint [{------------------------>Set memory[} (i + num) {] =} (pick v num)]
+							poke memory (i + num) (pick v num) ;; removed
 						]
 						increment-pc
 					]
 					#{0065} [
 						;;Fills V0 to VX with values from memory starting at address I.
 						repeat num 16 [
-							vprint [{------------------------>Set V[} num {] =} (pick memory (i + num - 1))]
-							poke v num (pick memory (i + num - 1))
+							vprint [{------------------------>Set V[} num {] =} (pick memory (i + num))]
+							poke v num (pick memory (i + num))
 						]
 						increment-pc
 					]
