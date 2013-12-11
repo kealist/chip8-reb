@@ -3,28 +3,26 @@ Chip8 Emulator in Rebol 3
 
 ![Chip8 Screenshot](http://i.imgur.com/1eE1g68.jpg)
 
-This implementation of the Chip8 virtual machine currently requires Saphrion's GUI Rebol 3 (Windows only--for now) (http://development.saphirion.com/downloads/) to run.  It also needs an internet connection to download the current R3-Gui.r3 file.
+This implementation of the Chip8 virtual machine currently requires Saphrion's GUI Rebol 3 (Windows only--for now) (http://development.saphirion.com/downloads/) to run.  It also needs an internet connection to download the current R3-Gui.r3 file if the file does not exist in the current directory.
 
 ##Current State
+- Currently tracing a conversion bug between Rebol's 1-based indexing and Chip8's 0-based indexing
 
 ###What Works
 - Draw engine
-- Game loading
+- Game loading from Games/ Directory
 - Scaling
-- Most Opcodes
+- Opcodes
+- 
 
 ###What Doesn't Work
-- Controls (unimplemented)
-- Sound (unimplemented - Rebol 3 needs a sound library still)
+- Controls (partial implementation - working on a bug in the FX0A instruction to get them fully working)
+- Sound (unimplemented - Will implement a Rebol3 extension for SDL through a Red/System extension)
 
 To-Do
 -----------
 - When new timer system is complete in Rebol 3 switch from current R3-Gui hack
-- Implement control scheme by creating a style similar to Cyphre's screen style
-- Implement more robust game loading system
-- When final opcodes are implemented, use vprint-esque optional debugging output
-
-
+- When final opcodSes are implemented, use vprint-esque optional debugging output
 
 ##Specs:
 The specs of the Chip8 virtual machine follow (copied and adapted from Wikipedia):
