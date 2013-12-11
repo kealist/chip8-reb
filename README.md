@@ -13,7 +13,6 @@ This implementation of the Chip8 virtual machine currently requires Saphrion's G
 - Game loading from Games/ Directory
 - Scaling
 - Opcodes
-- 
 
 ###What Doesn't Work
 - Controls (partial implementation - working on a bug in the FX0A instruction to get them fully working)
