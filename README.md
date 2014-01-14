@@ -20,8 +20,9 @@ This implementation of the Chip8 virtual machine currently requires Saphrion's G
 
 To-Do
 -----------
-- When new timer system is complete in Rebol 3 switch from current R3-Gui hack
-- When final opcodSes are implemented, use vprint-esque optional debugging output
+- [ ] When new timer system is complete in Rebol 3 switch from current R3-Gui hack
+- [ ] When final opcodSes are implemented, use vprint-esque optional debugging output
+- [x] test
 
 ##Specs:
 The specs of the Chip8 virtual machine follow (copied and adapted from Wikipedia):
